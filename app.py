@@ -6,84 +6,82 @@ import time
 import re
 
 # -------------------------------------------------------------
-# CONFIGURATION DE LA PAGE & DESIGN (UX APPLE / GLOBAL NUMERIC)
+# CONFIGURATION DE LA PAGE & DESIGN (Light & Rounded)
 # -------------------------------------------------------------
-st.set_page_config(page_title="AdSpy By Global Numeric", page_icon="🟣", layout="wide")
+st.set_page_config(page_title="AdSpy By Global Numeric", page_icon="☁️", layout="wide")
 
-# Injection du CSS personnalisé pour le style Apple & couleurs Global Numeric
 st.markdown("""
     <style>
-        /* Typographie et espacements */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        /* Typographie arrondie et douce */
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+        
         html, body, [class*="css"] {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', sans-serif;
+            color: #333333;
         }
         
-        /* Titre personnalisé */
+        /* Titres Light et Minimalistes */
         .main-title {
-            font-size: 3rem;
-            font-weight: 700;
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #2c2c2e; /* Gris foncé Apple */
             margin-bottom: 0px;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
         }
         .sub-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            background: -webkit-linear-gradient(135deg, #E91E8C, #8B2FC9);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #8e8e93; /* Gris clair Apple */
+            margin-bottom: 15px;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
         }
 
-        /* Arrondis Apple sur les champs de saisie */
+        /* Arrondis doux sur les champs de saisie */
         div[data-baseweb="input"] > div, 
         div[data-baseweb="base-input"] > div {
-            border-radius: 14px !important;
-            border: 1px solid #e0e0e0;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);
+            border-radius: 18px !important;
+            border: 1px solid #e5e5ea !important;
+            background-color: #f2f2f7 !important; /* Fond gris très clair */
             transition: all 0.2s ease;
         }
         div[data-baseweb="input"] > div:focus-within {
-            border-color: #8B2FC9 !important;
-            box-shadow: 0 0 0 1px #8B2FC9 !important;
+            border-color: #d1d1d6 !important;
+            background-color: #ffffff !important;
         }
 
-        /* Boutons principaux avec dégradé Global Numeric */
+        /* Boutons principaux (Light & Soft) */
         div.stButton > button:first-child {
-            background: linear-gradient(135deg, #E91E8C, #8B2FC9);
-            color: white;
-            border: none;
+            background-color: #f2f2f7;
+            color: #000000;
+            border: 1px solid #e5e5ea;
             border-radius: 20px;
-            padding: 8px 24px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(139, 47, 201, 0.2);
+            padding: 10px 24px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            box-shadow: none;
         }
         div.stButton > button:first-child:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(233, 30, 140, 0.4);
+            background-color: #e5e5ea;
+            border-color: #d1d1d6;
+            color: #000000;
         }
 
-        /* Arrondis des boîtes d'alerte et de succès */
+        /* Alertes douces */
         div[data-testid="stAlert"] {
-            border-radius: 16px !important;
+            border-radius: 18px !important;
             border: none !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
         }
         
-        /* Conteneurs et séparateurs plus doux */
         hr {
-            border-color: #f0f0f0;
-            margin: 2em 0;
+            border-color: #f2f2f7;
+            margin: 2.5em 0;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# En-tête de l'application
 st.markdown('<p class="sub-title">AdSpy By Global Numeric</p>', unsafe_allow_html=True)
-st.markdown('<p class="main-title">Intelligence Créative 🚀</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">Intelligence Créative</p>', unsafe_allow_html=True)
 st.caption("Extrayez les publicités Meta gagnantes et générez des concepts créatifs grâce à l'IA.")
 
 # -------------------------------------------------------------
@@ -98,44 +96,56 @@ if not APIFY_TOKEN:
 
 apify_client = ApifyClient(APIFY_TOKEN)
 
-# Mémoire (Session State)
 if "ads_data" not in st.session_state:
     st.session_state.ads_data = None
 if "search_keyword" not in st.session_state:
     st.session_state.search_keyword = ""
 
 # -------------------------------------------------------------
-# FONCTIONS MÉTIER (Extracteur de texte)
+# FONCTIONS MÉTIER (Extracteur de texte 100% sécurisé)
 # -------------------------------------------------------------
 def extraire_vrai_texte(item):
     text_parts = []
     
-    for key in ["adText", "ad_creative_bodies", "adCreativeBodies"]:
-        val = item.get(key)
-        if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-        
-    for key in ["ad_creative_link_titles", "adCreativeLinkTitles"]:
-        val = item.get(key)
-        if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-        
-    for key in ["ad_creative_link_descriptions", "adCreativeLinkDescriptions", "ad_creative_link_captions"]:
-        val = item.get(key)
-        if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-        
-    snapshot = item.get("snapshot", {})
-    if isinstance(snapshot, dict):
-        body = snapshot.get("body", {}).get("markup", {}).get("__html", "")
-        if body: text_parts.append(re.sub('<[^<]+>', '', body).strip())
-        
-        cards = snapshot.get("cards", [])
-        if isinstance(cards, list) and len(cards) > 0:
-            card_body = cards[0].get("body", {}).get("markup", {}).get("__html", "")
-            if card_body: text_parts.append(re.sub('<[^<]+>', '', card_body).strip())
+    try:
+        for key in ["adText", "ad_creative_bodies", "adCreativeBodies"]:
+            val = item.get(key)
+            if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
             
-    text_parts = [t.strip() for t in text_parts if t and len(t.strip()) > 3]
-    texte_final = " \n\n ".join(list(dict.fromkeys(text_parts)))
-    
-    return texte_final if texte_final else None
+        for key in ["ad_creative_link_titles", "adCreativeLinkTitles"]:
+            val = item.get(key)
+            if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
+            
+        for key in ["ad_creative_link_descriptions", "adCreativeLinkDescriptions", "ad_creative_link_captions"]:
+            val = item.get(key)
+            if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
+            
+        snapshot = item.get("snapshot", {})
+        if isinstance(snapshot, dict):
+            body = snapshot.get("body", {})
+            if isinstance(body, dict):
+                markup = body.get("markup", {})
+                if isinstance(markup, dict):
+                    html_content = markup.get("__html", "")
+                    if html_content: 
+                        text_parts.append(re.sub('<[^<]+>', '', html_content).strip())
+            
+            cards = snapshot.get("cards", [])
+            # SÉCURITÉ AJOUTÉE : Vérifie que c'est une liste ET que le premier élément est un dictionnaire
+            if isinstance(cards, list) and len(cards) > 0:
+                first_card = cards[0]
+                if isinstance(first_card, dict):
+                    card_body = first_card.get("body", {}).get("markup", {}).get("__html", "")
+                    if card_body: 
+                        text_parts.append(re.sub('<[^<]+>', '', card_body).strip())
+                
+        text_parts = [t.strip() for t in text_parts if t and len(t.strip()) > 3]
+        texte_final = " \n\n ".join(list(dict.fromkeys(text_parts)))
+        return texte_final if texte_final else None
+        
+    except Exception:
+        # Si la structure de Meta est trop exotique, on évite le crash
+        return None
 
 # -------------------------------------------------------------
 # FORMULAIRE & INTERFACE PRINCIPALE
@@ -143,11 +153,11 @@ def extraire_vrai_texte(item):
 with st.form("search_form"):
     col1, col2 = st.columns([2, 1])
     with col1:
-        keyword = st.text_input("Secteur, produit ou mot-clé :", "bain de bouche")
+        keyword = st.text_input("Secteur, produit ou mot-clé :", "SaaS B2B")
     with col2:
         min_days = st.number_input("Ancienneté min. (jours) :", min_value=0, value=7, step=7)
     
-    submitted = st.form_submit_button("🔍 Lancer l'extraction")
+    submitted = st.form_submit_button("Lancer l'extraction")
 
 if submitted:
     st.session_state.search_keyword = keyword
@@ -161,7 +171,7 @@ if submitted:
             "count": 15
         }
         
-        with st.spinner(f"Scraping des publicités Meta pour '{keyword}' en cours..."):
+        with st.spinner("Recherche des publicités sur Meta..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
             dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
             raw_items = apify_client.dataset(dataset_id).list_items().items
@@ -190,10 +200,9 @@ if st.session_state.ads_data:
             ad_text_display = vrai_texte
             prompt_target = f"Analyse méticuleusement le texte (copywriting) de cette publicité :\n---\n{vrai_texte}\n---"
         else:
-            ad_text_display = "📸 *Texte incrusté dans l'image ou la vidéo non lisible par le scraper.*"
-            prompt_target = f"Cette publicité pour le produit '{st.session_state.search_keyword}' utilise un format 100% visuel sans description textuelle. Propose une stratégie d'accroche vidéo et un angle psychologique redoutable pour vendre ce type de produit."
+            ad_text_display = "📸 *Format visuel sans texte descriptif extrait.*"
+            prompt_target = f"Cette publicité pour le produit '{st.session_state.search_keyword}' utilise un format visuel sans description. Propose une stratégie d'accroche vidéo et un angle psychologique pour ce type de produit."
 
-        # Construction du lien propre
         ad_id = item.get("id") or item.get("adArchiveID") or item.get("archive_id") or item.get("ad_id")
         page_id = item.get("pageID") or item.get("pageId") or item.get("page_id")
         
@@ -205,28 +214,28 @@ if st.session_state.ads_data:
             safe_keyword2 = urllib.parse.quote(st.session_state.search_keyword)
             ad_url = item.get("snapshotUrl") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword2}"
 
-        st.markdown(f"### Pub #{idx} : **{page_name}**")
+        st.markdown(f"### **{page_name}**")
         
         col_data, col_ai = st.columns([1, 1], gap="large")
 
         with col_data:
-            st.markdown("**📝 Copywriting extrait :**")
+            st.markdown("**📝 Copywriting extrait**")
             st.info(ad_text_display)
-            st.markdown(f"🔗 [**Ouvrir l'annonce dans Meta Ad Library**]({ad_url})")
+            st.markdown(f"🔗 [Voir l'annonce originale sur Meta]({ad_url})")
 
         with col_ai:
-            st.markdown("**🧠 Insight Global Numeric :**")
-            if st.button(f"✨ Décoder la stratégie (Pub #{idx})", key=f"btn_{idx}"):
+            st.markdown("**🧠 Insight IA**")
+            if st.button(f"Décoder la stratégie (Pub #{idx})", key=f"btn_{idx}"):
                 if not GEMINI_API_KEY:
                     st.warning("⚠️ Clé GEMINI_API_KEY absente.")
                 else:
                     try:
-                        with st.spinner("Analyse du framework publicitaire..."):
+                        with st.spinner("Analyse du framework..."):
                             genai.configure(api_key=GEMINI_API_KEY)
                             model = genai.GenerativeModel("gemini-3.8-flash")
                             
                             prompt = f"""
-                            Tu es un copywriter et expert en Growth Marketing chez Global Numeric.
+                            Tu es un copywriter et expert en Growth Marketing.
                             {prompt_target}
                             
                             Délivre une analyse percutante, moderne et minimaliste (en français) structurée ainsi :
@@ -245,9 +254,9 @@ if st.session_state.ads_data:
                             
                             placeholder = st.empty()
                             for i in range(wait_time, 0, -1):
-                                placeholder.warning(f"⏳ L'IA calcule. Lancement possible dans **{i} secondes**...")
+                                placeholder.warning(f"⏳ L'IA calcule. Relance possible dans {i} s...")
                                 time.sleep(1)
-                            placeholder.success("✅ C'est bon, l'IA est prête, cliquez à nouveau !")
+                            placeholder.success("✅ C'est bon, l'IA est prête !")
                         else:
                             st.error(f"Erreur d'analyse : {err}")
 
