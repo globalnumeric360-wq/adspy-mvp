@@ -1,7 +1,7 @@
 import streamlit as st
 from apify_client import ApifyClient
 import google.generativeai as genai
-import urllib.parse # Pour gérer les espaces dans les liens
+import urllib.parse 
 
 # Configuration de la page
 st.set_page_config(page_title="AdSpy & Creative Generator", page_icon="🚀", layout="wide")
@@ -40,7 +40,6 @@ if submitted:
     st.info(f"Recherche des publicités pour **'{keyword}'**...")
     
     try:
-        # Encodage propre du mot-clé (ex: "bain de bouche" devient "bain%20de%20bouche")
         safe_keyword = urllib.parse.quote(keyword)
         search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword}"
         
@@ -75,13 +74,16 @@ if st.session_state.ads_data:
         if isinstance(ad_text, list):
             ad_text = " ".join(ad_text)
             
-        # Correction 1 : Liens robustes et cliquables
-        ad_id = item.get("id") or item.get("adArchiveID")
-        safe_keyword2 = urllib.parse.quote(st.session_state.search_keyword)
+        # CORRECTION DES LIENS : Balayage de toutes les variables d'ID du scraper
+        ad_id = item.get("id") or item.get("adArchiveID") or item.get("archive_id") or item.get("ad_id")
+        page_id = item.get("pageID") or item.get("pageId") or item.get("page_id")
         
         if ad_id:
             ad_url = f"https://www.facebook.com/ads/library/?id={ad_id}"
+        elif page_id:
+            ad_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id={page_id}"
         else:
+            safe_keyword2 = urllib.parse.quote(st.session_state.search_keyword)
             ad_url = item.get("snapshotUrl") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword2}"
 
         st.markdown(f"### Pub #{idx} : **{page_name}**")
@@ -91,7 +93,6 @@ if st.session_state.ads_data:
         with col_data:
             st.markdown("**📝 Texte de la publicité :**")
             st.info(ad_text)
-            # Lien encodé, garanti de ne pas se casser
             st.markdown(f"👉 [**Consulter la pub sur Meta**]({ad_url})")
 
         with col_ai:
@@ -100,32 +101,39 @@ if st.session_state.ads_data:
                 if not GEMINI_API_KEY:
                     st.warning("⚠️ Clé GEMINI_API_KEY absente.")
                 else:
-                    with st.spinner("Génération par l'IA en cours..."):
+                    with st.spinner("Recherche du modèle IA et génération en cours..."):
                         genai.configure(api_key=GEMINI_API_KEY)
-                        prompt = f"""
-                        Tu es un expert en Growth Marketing. Analyse cette publicité Meta :
-                        ---
-                        {ad_text}
-                        ---
-                        Réponds en français :
-                        1. **Accroche (Hook) :** Quelle est la technique utilisée ?
-                        2. **Angle psychologique :** Quel désir/problème est visé ?
-                        3. **Concept dérivé :** Propose une idée de nouvelle publicité inspirée de cette structure.
-                        """
                         
-                        # Correction 2 : Fallback automatique du modèle
                         try:
-                            # Tentative avec le modèle récent
-                            model = genai.GenerativeModel('gemini-1.5-flash')
-                            res = model.generate_content(prompt)
-                            st.markdown(res.text)
-                        except Exception:
-                            try:
-                                # Plan B : le modèle universel garanti
-                                model_fallback = genai.GenerativeModel('gemini-pro')
-                                res_fallback = model_fallback.generate_content(prompt)
-                                st.markdown(res_fallback.text)
-                            except Exception as e_final:
-                                st.error(f"L'API Gemini rencontre une erreur : {e_final}")
+                            # CORRECTION GEMINI : Détection dynamique et automatique des modèles autorisés
+                            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                            chosen_model = None
+                            
+                            for m_name in available_models:
+                                if "gemini-1.5" in m_name:
+                                    chosen_model = m_name
+                                    break
+                            
+                            if not chosen_model and available_models:
+                                chosen_model = available_models[0] 
+                            
+                            if not chosen_model:
+                                st.error("Aucun modèle Gemini compatible trouvé sur votre clé API.")
+                            else:
+                                model = genai.GenerativeModel(chosen_model)
+                                prompt = f"""
+                                Tu es un expert en Growth Marketing. Analyse cette publicité Meta :
+                                ---
+                                {ad_text}
+                                ---
+                                Réponds en français de manière très concise :
+                                1. **Accroche (Hook) :** Quelle est la technique utilisée ?
+                                2. **Angle psychologique :** Quel désir/problème est visé ?
+                                3. **Concept dérivé :** Propose une idée de nouvelle publicité inspirée de cette structure.
+                                """
+                                res = model.generate_content(prompt)
+                                st.markdown(res.text)
+                        except Exception as err:
+                            st.error(f"L'API Gemini rencontre une erreur : {err}")
 
         st.divider()
