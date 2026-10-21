@@ -34,12 +34,12 @@ if submitted:
     st.info(f"Recherche des publicités pour **'{keyword}'** actives depuis au moins {min_days} jours...")
     
     try:
-        # Scraping Apify (Meta Ads Library)
-        run_input = {
-            "searchTerms": keyword,
-            "resultsLimit": 10,
-            "adActiveStatus": "ACTIVE"
-        }
+        
+search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={keyword}"
+run_input = {
+    "urls": [{"url": search_url}],
+    "count": 10
+}
         
         with st.spinner("Extraction des publicités en cours..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
