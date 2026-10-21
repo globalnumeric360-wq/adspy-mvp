@@ -76,7 +76,7 @@ if submitted:
             st.success(f"🎉 {len(items_to_display)} publicités identifiées !")
             st.divider()
 
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
 
             for idx, item in enumerate(items_to_display[:5], 1):
                 page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
