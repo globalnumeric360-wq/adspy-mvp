@@ -1,7 +1,7 @@
 import streamlit as st
 from apify_client import ApifyClient
 import google.generativeai as genai
-from datetime import datetime
+import urllib.parse # Pour gérer les espaces dans les liens
 
 # Configuration de la page
 st.set_page_config(page_title="AdSpy & Creative Generator", page_icon="🚀", layout="wide")
@@ -14,15 +14,12 @@ APIFY_TOKEN = st.secrets.get("APIFY_TOKEN")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
 
 if not APIFY_TOKEN:
-    st.error("⚠️ Le token APIFY_TOKEN n'est pas configuré dans les Secrets Streamlit.")
+    st.error("⚠️ Le token APIFY_TOKEN n'est pas configuré.")
     st.stop()
 
 apify_client = ApifyClient(APIFY_TOKEN)
 
-# -------------------------------------------------------------
-# CORRECTION 1 : GESTION DE LA MÉMOIRE (SESSION STATE)
-# Cela empêche l'application de se réinitialiser quand on clique sur "Analyser"
-# -------------------------------------------------------------
+# Mémoire (Session State) pour éviter la réinitialisation
 if "ads_data" not in st.session_state:
     st.session_state.ads_data = None
 if "search_keyword" not in st.session_state:
@@ -38,13 +35,15 @@ with st.form("search_form"):
     
     submitted = st.form_submit_button("🔍 Lancer la recherche")
 
-# Si on lance une nouvelle recherche, on met à jour la mémoire
 if submitted:
     st.session_state.search_keyword = keyword
     st.info(f"Recherche des publicités pour **'{keyword}'**...")
     
     try:
-        search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={keyword}"
+        # Encodage propre du mot-clé (ex: "bain de bouche" devient "bain%20de%20bouche")
+        safe_keyword = urllib.parse.quote(keyword)
+        search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword}"
+        
         run_input = {
             "urls": [{"url": search_url}],
             "count": 15
@@ -59,70 +58,74 @@ if submitted:
             st.warning(f"Aucune publicité trouvée pour le terme '{keyword}'.")
             st.session_state.ads_data = None
         else:
-            # On sauvegarde les résultats dans la mémoire
             st.session_state.ads_data = raw_items
 
     except Exception as e:
-        st.error(f"Une erreur s'est produite lors de l'extraction : {e}")
+        st.error(f"Erreur d'extraction : {e}")
 
-# Affichage des publicités stockées en mémoire (Reste visible même après un clic)
+# Affichage des publicités et Analyse IA
 if st.session_state.ads_data:
-    st.success(f"🎉 {len(st.session_state.ads_data)} publicités identifiées pour '{st.session_state.search_keyword}' !")
+    st.success(f"🎉 {len(st.session_state.ads_data)} publicités identifiées !")
     st.divider()
 
     for idx, item in enumerate(st.session_state.ads_data[:5], 1):
-        page_name = item.get("pageName") or item.get("page_name") or "Annonceur inconnu"
+        page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
         
-        ad_text = item.get("adText") or item.get("ad_creative_bodies") or item.get("snapshot", {}).get("body", {}).get("markup") or "Publicité visuelle sans texte long."
+        ad_text = item.get("adText") or item.get("ad_creative_bodies") or "Publicité visuelle sans texte."
         if isinstance(ad_text, list):
             ad_text = " ".join(ad_text)
-        
-        # -------------------------------------------------------------
-        # CORRECTION 2 : LIEN DIRECT VERS LA PUBLICITÉ
-        # On force l'URL exacte avec l'ID unique de la pub Meta
-        # -------------------------------------------------------------
+            
+        # Correction 1 : Liens robustes et cliquables
         ad_id = item.get("id") or item.get("adArchiveID")
+        safe_keyword2 = urllib.parse.quote(st.session_state.search_keyword)
+        
         if ad_id:
             ad_url = f"https://www.facebook.com/ads/library/?id={ad_id}"
         else:
-            ad_url = item.get("snapshotUrl") or item.get("ad_snapshot_url") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={st.session_state.search_keyword}"
+            ad_url = item.get("snapshotUrl") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword2}"
 
         st.markdown(f"### Pub #{idx} : **{page_name}**")
         
         col_data, col_ai = st.columns([1, 1])
 
         with col_data:
-            st.markdown("**📝 Copy / Texte de la publicité :**")
+            st.markdown("**📝 Texte de la publicité :**")
             st.info(ad_text)
-            st.markdown(f"👉 [**Consulter la pub exacte sur Meta**]({ad_url})")
+            # Lien encodé, garanti de ne pas se casser
+            st.markdown(f"👉 [**Consulter la pub sur Meta**]({ad_url})")
 
         with col_ai:
             st.markdown("**💡 Analyse & Idées Créatives :**")
             if st.button(f"✨ Analyser la pub #{idx}", key=f"btn_{idx}"):
                 if not GEMINI_API_KEY:
-                    st.warning("⚠️ Clé GEMINI_API_KEY absente des secrets.")
+                    st.warning("⚠️ Clé GEMINI_API_KEY absente.")
                 else:
-                    with st.spinner("Génération des insights par l'IA..."):
+                    with st.spinner("Génération par l'IA en cours..."):
+                        genai.configure(api_key=GEMINI_API_KEY)
+                        prompt = f"""
+                        Tu es un expert en Growth Marketing. Analyse cette publicité Meta :
+                        ---
+                        {ad_text}
+                        ---
+                        Réponds en français :
+                        1. **Accroche (Hook) :** Quelle est la technique utilisée ?
+                        2. **Angle psychologique :** Quel désir/problème est visé ?
+                        3. **Concept dérivé :** Propose une idée de nouvelle publicité inspirée de cette structure.
+                        """
+                        
+                        # Correction 2 : Fallback automatique du modèle
                         try:
-                            genai.configure(api_key=GEMINI_API_KEY)
-                            try:
-                                model = genai.GenerativeModel('gemini-1.5-flash')
-                            except Exception:
-                                model = genai.GenerativeModel('gemini-1.5-pro')
-
-                            prompt = f"""
-                            Tu es un expert en Growth Marketing.
-                            Analyse cette publicité Meta :
-                            ---
-                            {ad_text}
-                            ---
-                            1. **Accroche (Hook) :** Technique utilisée.
-                            2. **Angle psychologique :** Problème ou désir visé.
-                            3. **Concept dérivé :** Script/idée de pub inspirée de cette structure.
-                            """
+                            # Tentative avec le modèle récent
+                            model = genai.GenerativeModel('gemini-1.5-flash')
                             res = model.generate_content(prompt)
                             st.markdown(res.text)
-                        except Exception as err:
-                            st.error(f"Erreur IA : {err}")
+                        except Exception:
+                            try:
+                                # Plan B : le modèle universel garanti
+                                model_fallback = genai.GenerativeModel('gemini-pro')
+                                res_fallback = model_fallback.generate_content(prompt)
+                                st.markdown(res_fallback.text)
+                            except Exception as e_final:
+                                st.error(f"L'API Gemini rencontre une erreur : {e_final}")
 
         st.divider()
