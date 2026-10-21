@@ -7,87 +7,43 @@ import re
 import requests 
 
 # -------------------------------------------------------------
-# CONFIGURATION DE LA PAGE & DESIGN "LANDING PAGE"
+# CONFIGURATION DE LA PAGE & DESIGN
 # -------------------------------------------------------------
 st.set_page_config(page_title="AdSpy By Global Numeric", layout="wide")
 
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+        html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #2c2c2e; }
+        .hero-section { text-align: center; padding: 40px 0 20px 0; }
+        .main-title { font-size: 2.8rem; font-weight: 800; color: #1c1c1e; margin-bottom: 5px; letter-spacing: -0.5px; }
+        .sub-title { font-size: 1rem; font-weight: 800; color: #8e8e93; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
+        .hero-caption { font-size: 1.1rem; color: #636366; margin-bottom: 20px; }
         
-        html, body, [class*="css"] {
-            font-family: 'Nunito', sans-serif;
-            color: #2c2c2e;
-        }
-        
-        .hero-section {
-            text-align: center;
-            padding: 40px 0 30px 0;
-        }
-        .main-title {
-            font-size: 2.8rem;
-            font-weight: 800;
-            color: #1c1c1e;
-            margin-bottom: 5px;
-            letter-spacing: -0.5px;
-        }
-        .sub-title {
-            font-size: 1rem;
-            font-weight: 800;
-            color: #8e8e93;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .hero-caption {
-            font-size: 1.1rem;
-            color: #636366;
-            margin-bottom: 30px;
-        }
+        .info-box { background-color: #f8f9fa; border-left: 4px solid #1c1c1e; padding: 15px 20px; border-radius: 0 12px 12px 0; margin-bottom: 30px; font-size: 0.95rem; color: #3a3a3c; }
 
-        div[data-baseweb="input"] > div, 
-        div[data-baseweb="base-input"] > div {
-            border-radius: 16px !important;
-            border: 1px solid #e5e5ea !important;
-            background-color: #f2f2f7 !important;
-            transition: all 0.2s ease;
-        }
-        div[data-baseweb="input"] > div:focus-within {
-            border-color: #c7c7cc !important;
-            background-color: #ffffff !important;
-        }
-
-        div.stButton > button:first-child {
-            background-color: #1c1c1e;
-            color: #ffffff;
-            border: none;
-            border-radius: 16px;
-            padding: 8px 24px;
-            font-weight: 700;
-            transition: all 0.2s ease;
-            width: 100%;
-        }
-        div.stButton > button:first-child:hover {
-            background-color: #3a3a3c;
-            color: #ffffff;
-        }
-
-        div[data-testid="stAlert"] {
-            border-radius: 16px !important;
-            border: none !important;
-        }
+        div[data-baseweb="input"] > div, div[data-baseweb="base-input"] > div { border-radius: 16px !important; border: 1px solid #e5e5ea !important; background-color: #f2f2f7 !important; transition: all 0.2s ease; }
+        div[data-baseweb="input"] > div:focus-within { border-color: #c7c7cc !important; background-color: #ffffff !important; }
+        div.stButton > button:first-child { background-color: #1c1c1e; color: #ffffff; border: none; border-radius: 16px; padding: 8px 24px; font-weight: 700; transition: all 0.2s ease; width: 100%; }
+        div.stButton > button:first-child:hover { background-color: #3a3a3c; color: #ffffff; }
+        div[data-testid="stAlert"] { border-radius: 16px !important; border: none !important; }
         hr { border-color: #f2f2f7; margin: 2.5em 0; }
     </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# EN-TÊTE CENTRÉ (HERO SECTION)
+# EN-TÊTE & EXPLICATION DE RENTABILITÉ
 # -------------------------------------------------------------
 st.markdown("""
     <div class="hero-section">
         <p class="sub-title">AdSpy By Global Numeric</p>
         <p class="main-title">Intelligence Créative (V1)</p>
         <p class="hero-caption">Extrayez les publicités Meta gagnantes et analysez la stratégie sous-jacente.</p>
+    </div>
+    
+    <div class="info-box">
+        <strong>💡 Pourquoi ces publicités sont-elles considérées comme "Winner" ?</strong><br>
+        Les annonces affichées par notre moteur ont passé un filtre strict : elles sont actuellement actives et triées par durée de diffusion. Dans le monde du Media Buying, aucun annonceur ne paie pour diffuser une publicité qui perd de l'argent sur la durée. En analysant ces contenus, vous décryptez des campagnes qui sont mathématiquement rentables.
     </div>
 """, unsafe_allow_html=True)
 
@@ -110,6 +66,9 @@ if "search_keyword" not in st.session_state:
     st.session_state.search_keyword = ""
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
+# MÉMOIRE DES ANALYSES IA (Évite que le texte disparaisse)
+if "analyses_ia" not in st.session_state:
+    st.session_state.analyses_ia = {}
 
 # -------------------------------------------------------------
 # EXTRACTEUR DE TEXTE
@@ -159,6 +118,7 @@ with center_col:
 
 if submitted:
     st.session_state.search_keyword = keyword
+    st.session_state.analyses_ia = {} # On vide la mémoire des anciennes analyses
     try:
         safe_keyword = urllib.parse.quote(keyword)
         search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword}"
@@ -206,7 +166,7 @@ if st.session_state.ads_data:
                                     "recherche": st.session_state.search_keyword,
                                     "date": time.strftime("%Y-%m-%d %H:%M:%S")
                                 }
-                                requests.post(WEBHOOK_URL, json=payload)
+                                requests.post(WEBHOOK_URL, json=payload, timeout=5)
                             except Exception:
                                 pass
                         
@@ -250,59 +210,65 @@ if st.session_state.ads_data:
 
             with col_ai:
                 st.markdown("**Analyse Stratégique**")
-                if st.button(f"Générer l'insight pour la Pub #{idx}", key=f"btn_{idx}"):
-                    if not GEMINI_API_KEY:
-                        st.warning("Clé GEMINI_API_KEY non configurée.")
-                    else:
-                        with st.spinner("Décodage stratégique en cours..."):
-                            genai.configure(api_key=GEMINI_API_KEY)
-                            model = genai.GenerativeModel("gemini-3.8-flash")
-                            
-                            prompt = f"""
-                            Tu es un Directeur Stratégique au sein d'une agence de publicité premium. 
-                            {prompt_target}
-                            
-                            L'analyse doit être professionnelle, élégante et nuancée. Interdiction d'utiliser des formules 'putaclic'.
-                            Structure ta réponse ainsi :
-                            
-                            **Décodage du Message**
-                            Explique concrètement ce que la marque tente d'accomplir.
-                            
-                            **Levier Psychologique**
-                            Identifie le besoin profond ciblé.
-                            
-                            **Recommandation d'Optimisation**
-                            Suggère une idée pour élever cette publicité (direction artistique ou copywriting).
-                            """
-                            
-                            # ---------- CORRECTION : BOUCLE DE RELANCE AUTOMATIQUE ----------
-                            max_tentatives = 3
-                            for tentative in range(max_tentatives):
-                                try:
-                                    res = model.generate_content(prompt)
-                                    st.markdown(res.text)
-                                    break # C'est un succès, on sort de la boucle !
-                                    
-                                except Exception as err:
-                                    err_str = str(err)
-                                    if "429" in err_str or "Quota exceeded" in err_str:
-                                        if tentative < max_tentatives - 1:
-                                            # Trouve les secondes demandées par Google et ajoute 2s de marge de sécurité
-                                            match = re.search(r"retry in ([\d\.]+)s", err_str)
-                                            wait_time = int(float(match.group(1))) + 2 if match else 20
-                                            
-                                            placeholder = st.empty()
-                                            for i in range(wait_time, 0, -1):
-                                                placeholder.warning(f"Régulation Google active. Reprise AUTOMATIQUE de l'analyse dans {i} s...")
-                                                time.sleep(1)
-                                                
-                                            # On efface le message d'attente pour que la boucle (tentative suivante) recommence
-                                            placeholder.empty()
+                
+                # --- NOUVEAU : Affichage depuis la mémoire ---
+                if idx in st.session_state.analyses_ia:
+                    st.success("Analyse terminée")
+                    st.markdown(st.session_state.analyses_ia[idx])
+                else:
+                    if st.button(f"Générer l'insight pour la Pub #{idx}", key=f"btn_{idx}"):
+                        if not GEMINI_API_KEY:
+                            st.warning("Clé GEMINI_API_KEY non configurée.")
+                        else:
+                            with st.spinner("Décodage stratégique en cours..."):
+                                genai.configure(api_key=GEMINI_API_KEY)
+                                model = genai.GenerativeModel("gemini-3.8-flash")
+                                
+                                prompt = f"""
+                                Tu es un Directeur Stratégique au sein d'une agence de publicité premium. 
+                                {prompt_target}
+                                
+                                L'analyse doit être professionnelle, élégante et nuancée. Interdiction d'utiliser des formules 'putaclic'.
+                                Structure ta réponse ainsi :
+                                
+                                **Décodage du Message**
+                                Explique concrètement ce que la marque tente d'accomplir.
+                                
+                                **Levier Psychologique**
+                                Identifie le besoin profond ciblé.
+                                
+                                **Recommandation d'Optimisation**
+                                Suggère une idée pour élever cette publicité (direction artistique ou copywriting).
+                                """
+                                
+                                max_tentatives = 3
+                                success = False
+                                
+                                for tentative in range(max_tentatives):
+                                    try:
+                                        res = model.generate_content(prompt)
+                                        # On sauvegarde en mémoire !
+                                        st.session_state.analyses_ia[idx] = res.text
+                                        success = True
+                                        break 
+                                        
+                                    except Exception as err:
+                                        err_str = str(err)
+                                        if "429" in err_str or "Quota exceeded" in err_str:
+                                            if tentative < max_tentatives - 1:
+                                                match = re.search(r"retry in ([\d\.]+)s", err_str)
+                                                wait_time = int(float(match.group(1))) + 2 if match else 20
+                                                placeholder = st.empty()
+                                                for i in range(wait_time, 0, -1):
+                                                    placeholder.warning(f"Régulation de l'API Google. Reprise AUTOMATIQUE dans {i} s...")
+                                                    time.sleep(1)
+                                                placeholder.empty()
+                                            else:
+                                                st.error("Le serveur Google est toujours surchargé. Veuillez réessayer dans une minute.")
                                         else:
-                                            st.error("Le serveur Google est toujours surchargé. Veuillez réessayer dans une minute.")
-                                    else:
-                                        st.error(f"Erreur système : {err}")
-                                        break
-                            # -----------------------------------------------------------------
-
+                                            st.error(f"Erreur système : {err}")
+                                            break
+                                            
+                                if success:
+                                    st.rerun() # Rafraîchit l'interface pour afficher le texte mémorisé
             st.divider()
