@@ -9,16 +9,15 @@ st.set_page_config(page_title="AdSpy & Creative Generator", page_icon="🚀", la
 st.title("🚀 AdSpy & Creative Generator (MVP)")
 st.caption("Trouvez les pubs gagnantes et générez des concepts créatifs basés sur des données réelles.")
 
-# Récupération sécurisée des clés API depuis Streamlit Secrets
+# Récupération sécurisée des clés API
 APIFY_TOKEN = st.secrets.get("APIFY_TOKEN")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
 
-if not APIFY_TOKEN or not GEMINI_API_KEY:
-    st.error("⚠️ Les clés API ne sont pas configurées dans les Secrets Streamlit.")
+if not APIFY_TOKEN:
+    st.error("⚠️ Le token APIFY_TOKEN n'est pas configuré dans les Secrets Streamlit.")
     st.stop()
 
 apify_client = ApifyClient(APIFY_TOKEN)
-genai.configure(api_key=GEMINI_API_KEY)
 
 # Formulaire utilisateur
 with st.form("search_form"):
@@ -28,13 +27,13 @@ with st.form("search_form"):
     with col2:
         min_days = st.number_input("Ancienneté min. (jours) :", min_value=0, value=7, step=7)
     
-    submitted = st.form_submit_button("🔍 Lancer la recherche & l'analyse")
+    submitted = st.form_submit_button("🔍 Lancer la recherche")
 
 if submitted:
     st.info(f"Recherche des publicités pour **'{keyword}'**...")
     
     try:
-        # Format d'entrée pour le scraper Apify Facebook Ads
+        # Recherche Meta Ads via Apify
         search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={keyword}"
         run_input = {
             "urls": [{"url": search_url}],
@@ -43,80 +42,64 @@ if submitted:
         
         with st.spinner("Extraction des publicités en cours..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
-            
             dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
             raw_items = apify_client.dataset(dataset_id).list_items().items
-
-        # Filtrage souple
-        filtered_items = []
-        now = datetime.now()
-        
-        for item in raw_items:
-            start_date_str = item.get("startDate") or item.get("adStartDate") or item.get("publisherPlatform")
-            days_active = "N/A"
-            
-            if start_date_str and isinstance(start_date_str, str) and len(start_date_str) >= 10:
-                try:
-                    start_date = datetime.strptime(start_date_str[:10], "%Y-%m-%d")
-                    days_calculated = (now - start_date).days
-                    if days_calculated >= min_days:
-                        days_active = days_calculated
-                        item["calculated_days"] = days_active
-                        filtered_items.append(item)
-                except ValueError:
-                    filtered_items.append(item)
-            else:
-                filtered_items.append(item)
 
         if not raw_items:
             st.warning(f"Aucune publicité trouvée pour le terme '{keyword}'.")
         else:
-            items_to_display = filtered_items if filtered_items else raw_items
-            st.success(f"🎉 {len(items_to_display)} publicités identifiées !")
+            st.success(f"🎉 {len(raw_items)} publicités identifiées !")
             st.divider()
 
-            # Modèle Gemini valide
-            try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
-            except Exception:
-                model = genai.GenerativeModel('gemini-1.5-pro')
-
-            for idx, item in enumerate(items_to_display[:5], 1):
-                page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
+            # Affichage direct des résultats sans attendre l'IA
+            for idx, item in enumerate(raw_items[:5], 1):
+                page_name = item.get("pageName") or item.get("page_name") or "Annonceur inconnu"
                 ad_text = item.get("adText") or item.get("ad_creative_bodies") or item.get("snapshot", {}).get("body", {}).get("markup") or "Publicité visuelle sans texte long."
-                
                 if isinstance(ad_text, list):
                     ad_text = " ".join(ad_text)
+                
+                ad_url = item.get("snapshotUrl") or item.get("ad_snapshot_url") or search_url
 
-                days_active = item.get("calculated_days", "Active")
-
-                st.markdown(f"### Pub #{idx} : **{page_name}** *(Statut : Active)*")
-
+                st.markdown(f"### Pub #{idx} : **{page_name}**")
+                
                 col_data, col_ai = st.columns([1, 1])
 
                 with col_data:
-                    st.markdown("**📝 Copy/Texte de la publicité :**")
+                    st.markdown("**📝 Copy / Texte de la publicité :**")
                     st.info(ad_text)
+                    st.markdown(f"👉 [**Consulter la pub d'origine sur Meta Library**]({ad_url})")
 
                 with col_ai:
-                    with st.spinner("Analyse IA et génération d'idées..."):
-                        prompt = f"""
-                        Tu es un expert mondial en Marketing Direct et création publicitaire.
-                        Voici le texte d'une publicité Meta active :
-                        
-                        ---
-                        {ad_text}
-                        ---
-                        
-                        Réalise l'analyse suivante en français clair :
-                        1. **Accroche (Hook) :** Quelle est la technique utilisée pour capter l'attention ?
-                        2. **Angle psychologique :** Quel problème ou désir est ciblé ?
-                        3. **Concept dérivé :** Propose une idée de nouvelle publicité (script court ou copy) basée sur cette structure.
-                        """
-                        response = model.generate_content(prompt)
-                        st.markdown(response.text)
+                    st.markdown("**💡 Analyse & Idées Créatives :**")
+                    if st.button(f"✨ Analyser la pub #{idx}", key=f"btn_{idx}"):
+                        if not GEMINI_API_KEY:
+                            st.warning("⚠️ Clé GEMINI_API_KEY absente des secrets.")
+                        else:
+                            with st.spinner("Génération des insights par l'IA..."):
+                                try:
+                                    genai.configure(api_key=GEMINI_API_KEY)
+                                    # Détection automatique du modèle disponible
+                                    try:
+                                        model = genai.GenerativeModel('gemini-1.5-flash')
+                                    except Exception:
+                                        model = genai.GenerativeModel('gemini-1.5-pro')
+
+                                    prompt = f"""
+                                    Tu es un expert en Growth Marketing.
+                                    Analyse cette publicité Meta :
+                                    ---
+                                    {ad_text}
+                                    ---
+                                    1. **Accroche (Hook) :** Technique utilisée.
+                                    2. **Angle psychologique :** Problème ou désir visé.
+                                    3. **Concept dérivé :** Script/idée de pub inspirée de cette structure.
+                                    """
+                                    res = model.generate_content(prompt)
+                                    st.markdown(res.text)
+                                except Exception as err:
+                                    st.error(f"Erreur IA : {err}")
 
                 st.divider()
 
     except Exception as e:
-        st.error(f"Une erreur s'est produite : {e}")
+        st.error(f"Une erreur s'est produite lors de l'extraction : {e}")
