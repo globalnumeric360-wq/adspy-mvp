@@ -24,7 +24,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 with st.form("search_form"):
     col1, col2 = st.columns([2, 1])
     with col1:
-        keyword = st.text_input("Secteur, produit ou mot-clé :", "Montre connectée")
+        keyword = st.text_input("Secteur, produit ou mot-clé :", "bain de bouche")
     with col2:
         min_days = st.number_input("Ancienneté min. (jours) :", min_value=7, value=30, step=7)
     
@@ -34,12 +34,12 @@ if submitted:
     st.info(f"Recherche des publicités pour **'{keyword}'** actives depuis au moins {min_days} jours...")
     
     try:
-        
-search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={keyword}"
-run_input = {
-    "urls": [{"url": search_url}],
-    "count": 10
-}
+        # Format d'entrée valide pour le scraper Apify Facebook Ads
+        search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={keyword}"
+        run_input = {
+            "urls": [{"url": search_url}],
+            "count": 10
+        }
         
         with st.spinner("Extraction des publicités en cours..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
