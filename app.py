@@ -66,7 +66,6 @@ if submitted:
                 except ValueError:
                     filtered_items.append(item)
             else:
-                # Si pas de date précise, on conserve la pub
                 filtered_items.append(item)
 
         if not raw_items:
@@ -76,17 +75,20 @@ if submitted:
             st.success(f"🎉 {len(items_to_display)} publicités identifiées !")
             st.divider()
 
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            # Modèle Gemini valide
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+            except Exception:
+                model = genai.GenerativeModel('gemini-1.5-pro')
 
             for idx, item in enumerate(items_to_display[:5], 1):
                 page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
                 ad_text = item.get("adText") or item.get("ad_creative_bodies") or item.get("snapshot", {}).get("body", {}).get("markup") or "Publicité visuelle sans texte long."
                 
-                # Nettoyage succinct si c'est une liste
                 if isinstance(ad_text, list):
                     ad_text = " ".join(ad_text)
 
-                days_active = item.get("calculated_days", "Récente")
+                days_active = item.get("calculated_days", "Active")
 
                 st.markdown(f"### Pub #{idx} : **{page_name}** *(Statut : Active)*")
 
