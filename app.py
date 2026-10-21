@@ -43,7 +43,10 @@ if submitted:
         
         with st.spinner("Extraction des publicités en cours..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
-            raw_items = apify_client.dataset(run["defaultDatasetId"]).list_items().items
+            
+            # Correction ici : récupération de l'ID du dataset de manière sécurisée
+            dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
+            raw_items = apify_client.dataset(dataset_id).list_items().items
 
         # Filtrage par durée
         filtered_items = []
