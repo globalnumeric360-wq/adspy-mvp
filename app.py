@@ -6,28 +6,89 @@ import time
 import re
 
 # -------------------------------------------------------------
-# CONFIGURATION DE LA PAGE & DESIGN
+# CONFIGURATION DE LA PAGE & DESIGN MINIMALISTE (Zéro Emoji)
 # -------------------------------------------------------------
-st.set_page_config(page_title="AdSpy By Global Numeric", page_icon="☁️", layout="wide")
+st.set_page_config(page_title="AdSpy By Global Numeric", layout="wide")
 
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
-        html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #333333; }
-        .main-title { font-size: 2.8rem; font-weight: 800; color: #2c2c2e; margin-bottom: 0px; letter-spacing: -0.5px; }
-        .sub-title { font-size: 1.1rem; font-weight: 700; color: #8e8e93; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1.5px; }
-        div[data-baseweb="input"] > div, div[data-baseweb="base-input"] > div { border-radius: 18px !important; border: 1px solid #e5e5ea !important; background-color: #f2f2f7 !important; transition: all 0.2s ease; }
-        div[data-baseweb="input"] > div:focus-within { border-color: #d1d1d6 !important; background-color: #ffffff !important; }
-        div.stButton > button:first-child { background-color: #f2f2f7; color: #000000; border: 1px solid #e5e5ea; border-radius: 20px; padding: 10px 24px; font-weight: 700; transition: all 0.2s ease; box-shadow: none; }
-        div.stButton > button:first-child:hover { background-color: #e5e5ea; border-color: #d1d1d6; color: #000000; }
-        div[data-testid="stAlert"] { border-radius: 18px !important; border: none !important; }
-        hr { border-color: #f2f2f7; margin: 2.5em 0; }
+        
+        html, body, [class*="css"] {
+            font-family: 'Nunito', sans-serif;
+            color: #2c2c2e;
+        }
+        
+        .main-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #1c1c1e;
+            margin-bottom: 0px;
+            letter-spacing: -0.5px;
+        }
+        .sub-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #8e8e93;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        /* Champs de saisie - Soft UI */
+        div[data-baseweb="input"] > div, 
+        div[data-baseweb="base-input"] > div {
+            border-radius: 16px !important;
+            border: 1px solid #e5e5ea !important;
+            background-color: #f2f2f7 !important;
+            transition: all 0.2s ease;
+        }
+        div[data-baseweb="input"] > div:focus-within {
+            border-color: #c7c7cc !important;
+            background-color: #ffffff !important;
+        }
+
+        /* Boutons - Style Apple Light */
+        div.stButton > button:first-child {
+            background-color: #f2f2f7;
+            color: #1c1c1e;
+            border: 1px solid #e5e5ea;
+            border-radius: 16px;
+            padding: 8px 24px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            box-shadow: none;
+        }
+        div.stButton > button:first-child:hover {
+            background-color: #e5e5ea;
+            border-color: #c7c7cc;
+        }
+
+        /* Conteneurs et typographie de contenu */
+        div[data-testid="stAlert"] {
+            border-radius: 16px !important;
+            border: none !important;
+        }
+        
+        hr {
+            border-color: #f2f2f7;
+            margin: 2.5em 0;
+        }
+        
+        /* Styliser proprement la réponse IA */
+        .ai-response-container {
+            background-color: #ffffff;
+            border: 1px solid #e5e5ea;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="sub-title">AdSpy By Global Numeric</p>', unsafe_allow_html=True)
 st.markdown('<p class="main-title">Intelligence Créative</p>', unsafe_allow_html=True)
-st.caption("Extrayez les publicités Meta gagnantes et générez des concepts créatifs grâce à l'IA.")
+st.caption("Extrayez les publicités Meta gagnantes et analysez la stratégie sous-jacente avec précision.")
 
 # -------------------------------------------------------------
 # RÉCUPÉRATION DES CLÉS API
@@ -36,7 +97,7 @@ APIFY_TOKEN = st.secrets.get("APIFY_TOKEN")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
 
 if not APIFY_TOKEN:
-    st.error("⚠️ Le token APIFY_TOKEN n'est pas configuré.")
+    st.error("Erreur de configuration : APIFY_TOKEN manquant dans les variables d'environnement.")
     st.stop()
 
 apify_client = ApifyClient(APIFY_TOKEN)
@@ -87,9 +148,9 @@ def extraire_vrai_texte(item):
 with st.form("search_form"):
     col1, col2 = st.columns([2, 1])
     with col1:
-        keyword = st.text_input("Secteur, produit ou mot-clé :", "SaaS B2B")
+        keyword = st.text_input("Secteur, produit ou mot-clé", "SaaS B2B")
     with col2:
-        min_days = st.number_input("Ancienneté min. (jours) :", min_value=0, value=7, step=7)
+        min_days = st.number_input("Ancienneté min. (jours)", min_value=0, value=7, step=7)
     submitted = st.form_submit_button("Lancer l'extraction")
 
 if submitted:
@@ -98,12 +159,14 @@ if submitted:
         safe_keyword = urllib.parse.quote(keyword)
         search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword}"
         run_input = {"urls": [{"url": search_url}], "count": 15}
-        with st.spinner("Recherche des publicités sur Meta..."):
+        
+        with st.spinner("Analyse de la bibliothèque Meta en cours..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
             dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
             raw_items = apify_client.dataset(dataset_id).list_items().items
+            
         if not raw_items:
-            st.warning(f"Aucune publicité trouvée pour le terme '{keyword}'.")
+            st.warning(f"Aucune publicité active trouvée pour '{keyword}'.")
             st.session_state.ads_data = None
         else:
             st.session_state.ads_data = raw_items
@@ -111,23 +174,23 @@ if submitted:
         st.error(f"Erreur d'extraction : {e}")
 
 # -------------------------------------------------------------
-# AFFICHAGE & ANALYSE IA
+# AFFICHAGE & ANALYSE STRATÉGIQUE IA
 # -------------------------------------------------------------
 if st.session_state.ads_data:
-    st.success(f"🎯 {len(st.session_state.ads_data)} publicités identifiées avec succès !")
+    st.success(f"{len(st.session_state.ads_data)} annonces publicitaires identifiées.")
     st.divider()
 
     for idx, item in enumerate(st.session_state.ads_data[:5], 1):
         page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
         vrai_texte = extraire_vrai_texte(item)
         
-        # Adaptation de l'UX et du Prompt si le texte est introuvable
+        # Adaptation du Prompt pour un rôle de Directeur Stratégique (Premium, Sans putaclic)
         if vrai_texte:
             ux_text_display = vrai_texte
-            prompt_target = f"Analyse méticuleusement le texte (copywriting) de cette publicité :\n---\n{vrai_texte}\n---"
+            prompt_target = f"Décrypte la mécanique de copywriting de cette annonce existante :\n---\n{vrai_texte}\n---"
         else:
-            ux_text_display = "🔒 *Texte protégé par Meta ou incrusté dans le média (Image/Vidéo).*"
-            prompt_target = f"Le texte de cette publicité est invisible techniquement, mais elle cible le mot-clé '{st.session_state.search_keyword}'. Propose 3 stratégies d'accroches psychologiques ultra-performantes (Hooks) que l'on pourrait utiliser pour vendre ce type de produit/service sur Meta Ads."
+            ux_text_display = "[Format Visuel] Texte protégé par Meta ou incrusté dans l'image/vidéo."
+            prompt_target = f"Le texte de cette publicité est inaccessible techniquement. Sachant qu'elle cible le marché '{st.session_state.search_keyword}', propose une seule recommandation stratégique de positionnement (direction artistique ou angle d'attaque) pour ce type de secteur."
 
         ad_id = item.get("id") or item.get("adArchiveID") or item.get("archive_id") or item.get("ad_id")
         page_id = item.get("pageID") or item.get("pageId") or item.get("page_id")
@@ -140,35 +203,47 @@ if st.session_state.ads_data:
             safe_keyword2 = urllib.parse.quote(st.session_state.search_keyword)
             ad_url = item.get("snapshotUrl") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword2}"
 
-        st.markdown(f"### **{page_name}**")
+        st.markdown(f"### {page_name}")
         col_data, col_ai = st.columns([1, 1], gap="large")
 
         with col_data:
-            st.markdown("**📝 Copywriting**")
+            st.markdown("**Texte extrait**")
             st.info(ux_text_display)
-            st.markdown(f"🔗 [Voir l'annonce originale sur Meta]({ad_url})")
+            st.markdown(f"[Consulter l'annonce originale sur Meta]({ad_url})")
 
         with col_ai:
-            st.markdown("**🧠 Insight IA**")
-            if st.button(f"Décoder la stratégie (Pub #{idx})", key=f"btn_{idx}"):
+            st.markdown("**Analyse Stratégique**")
+            if st.button(f"Générer l'insight pour la Pub #{idx}", key=f"btn_{idx}"):
                 if not GEMINI_API_KEY:
-                    st.warning("⚠️ Clé GEMINI_API_KEY absente.")
+                    st.warning("Clé GEMINI_API_KEY non configurée.")
                 else:
                     try:
-                        with st.spinner("Analyse du framework..."):
+                        with st.spinner("Décodage stratégique en cours..."):
                             genai.configure(api_key=GEMINI_API_KEY)
                             model = genai.GenerativeModel("gemini-3.8-flash")
+                            
                             prompt = f"""
-                            Tu es un copywriter et expert en Growth Marketing chez Global Numeric.
+                            Tu es un Directeur Stratégique au sein d'une agence de publicité premium. 
                             {prompt_target}
                             
-                            Délivre une réponse percutante, moderne et minimaliste (en français) structurée ainsi :
-                            1. **Hook (Accroche) :** L'angle d'attaque utilisé (ou recommandé).
-                            2. **Angle & Persona :** Quel problème profond est ciblé ?
-                            3. **Itération (V2) :** Propose une idée de script Hook rapide pour une future pub.
+                            L'analyse doit être extrêmement professionnelle, analytique, élégante et nuancée. Interdiction absolue d'utiliser des formules survendeuses ou 'putaclic'. 
+                            
+                            Structure ta réponse de cette manière claire et lisible :
+                            
+                            **Décodage du Message**
+                            Explique concrètement ce que la marque tente d'accomplir ici.
+                            
+                            **Levier Psychologique**
+                            Identifie le besoin profond ou le frein cognitif ciblé par cette annonce.
+                            
+                            **Recommandation d'Optimisation**
+                            Suggère une seule idée précise pour élever cette publicité (direction artistique plus fine, copywriting plus élégant, ou recadrage du message).
                             """
                             res = model.generate_content(prompt)
+                            
+                            # Rendu de la réponse IA avec une belle structure Markdown
                             st.markdown(res.text)
+                            
                     except Exception as err:
                         err_str = str(err)
                         if "429" in err_str or "Quota exceeded" in err_str:
@@ -176,9 +251,9 @@ if st.session_state.ads_data:
                             wait_time = int(float(match.group(1))) + 1 if match else 20
                             placeholder = st.empty()
                             for i in range(wait_time, 0, -1):
-                                placeholder.warning(f"⏳ L'IA calcule. Relance possible dans {i} s...")
+                                placeholder.warning(f"Régulation de l'API. Reprise possible dans {i} secondes.")
                                 time.sleep(1)
-                            placeholder.success("✅ C'est bon, l'IA est prête !")
+                            placeholder.success("Le système est prêt pour une nouvelle analyse.")
                         else:
-                            st.error(f"Erreur d'analyse : {err}")
+                            st.error(f"Erreur système : {err}")
         st.divider()
