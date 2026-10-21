@@ -4,7 +4,7 @@ import google.generativeai as genai
 import urllib.parse 
 import time
 import re
-import requests # Ajouté pour envoyer les emails vers ton CRM/Google Sheet
+import requests 
 
 # -------------------------------------------------------------
 # CONFIGURATION DE LA PAGE & DESIGN "LANDING PAGE"
@@ -96,7 +96,7 @@ st.markdown("""
 # -------------------------------------------------------------
 APIFY_TOKEN = st.secrets.get("APIFY_TOKEN")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
-WEBHOOK_URL = st.secrets.get("WEBHOOK_URL") # Ton nouveau connecteur
+WEBHOOK_URL = st.secrets.get("WEBHOOK_URL") 
 
 if not APIFY_TOKEN:
     st.error("Erreur de configuration : APIFY_TOKEN manquant.")
@@ -184,7 +184,6 @@ if st.session_state.ads_data:
     st.divider()
     st.success(f"{len(st.session_state.ads_data)} annonces publicitaires identifiées.")
     
-    # Wall Email
     if not st.session_state.user_email:
         st.info("Les publicités ont été extraites. Débloquez le moteur d'analyse stratégique IA.")
         _, lead_col, _ = st.columns([1, 1.5, 1])
@@ -199,7 +198,6 @@ if st.session_state.ads_data:
                     if "@" in email_input and "." in email_input:
                         st.session_state.user_email = email_input
                         
-                        # --- ENVOI DE L'EMAIL AU WEBHOOK ---
                         if WEBHOOK_URL:
                             try:
                                 payload = {
@@ -210,14 +208,13 @@ if st.session_state.ads_data:
                                 }
                                 requests.post(WEBHOOK_URL, json=payload)
                             except Exception:
-                                pass # Erreur silencieuse pour ne pas bloquer l'utilisateur
+                                pass
                         
                         st.rerun()
                     else:
                         st.error("Veuillez entrer une adresse email valide.")
         st.divider()
 
-    # Affichage des analyses si connecté
     else:
         st.markdown(f"*Accès débloqué pour : {st.session_state.user_email}*")
         
@@ -257,40 +254,55 @@ if st.session_state.ads_data:
                     if not GEMINI_API_KEY:
                         st.warning("Clé GEMINI_API_KEY non configurée.")
                     else:
-                        try:
-                            with st.spinner("Décodage stratégique en cours..."):
-                                genai.configure(api_key=GEMINI_API_KEY)
-                                model = genai.GenerativeModel("gemini-3.8-flash")
-                                
-                                prompt = f"""
-                                Tu es un Directeur Stratégique au sein d'une agence de publicité premium. 
-                                {prompt_target}
-                                
-                                L'analyse doit être professionnelle, élégante et nuancée. Interdiction d'utiliser des formules 'putaclic'.
-                                Structure ta réponse ainsi :
-                                
-                                **Décodage du Message**
-                                Explique concrètement ce que la marque tente d'accomplir.
-                                
-                                **Levier Psychologique**
-                                Identifie le besoin profond ciblé.
-                                
-                                **Recommandation d'Optimisation**
-                                Suggère une idée pour élever cette publicité (direction artistique ou copywriting).
-                                """
-                                res = model.generate_content(prompt)
-                                st.markdown(res.text)
-                                
-                        except Exception as err:
-                            err_str = str(err)
-                            if "429" in err_str or "Quota exceeded" in err_str:
-                                match = re.search(r"retry in ([\d\.]+)s", err_str)
-                                wait_time = int(float(match.group(1))) + 1 if match else 20
-                                placeholder = st.empty()
-                                for i in range(wait_time, 0, -1):
-                                    placeholder.warning(f"Régulation de l'API. Reprise dans {i} secondes.")
-                                    time.sleep(1)
-                                placeholder.success("Le système est prêt pour une nouvelle analyse.")
-                            else:
-                                st.error(f"Erreur système : {err}")
+                        with st.spinner("Décodage stratégique en cours..."):
+                            genai.configure(api_key=GEMINI_API_KEY)
+                            model = genai.GenerativeModel("gemini-3.8-flash")
+                            
+                            prompt = f"""
+                            Tu es un Directeur Stratégique au sein d'une agence de publicité premium. 
+                            {prompt_target}
+                            
+                            L'analyse doit être professionnelle, élégante et nuancée. Interdiction d'utiliser des formules 'putaclic'.
+                            Structure ta réponse ainsi :
+                            
+                            **Décodage du Message**
+                            Explique concrètement ce que la marque tente d'accomplir.
+                            
+                            **Levier Psychologique**
+                            Identifie le besoin profond ciblé.
+                            
+                            **Recommandation d'Optimisation**
+                            Suggère une idée pour élever cette publicité (direction artistique ou copywriting).
+                            """
+                            
+                            # ---------- CORRECTION : BOUCLE DE RELANCE AUTOMATIQUE ----------
+                            max_tentatives = 3
+                            for tentative in range(max_tentatives):
+                                try:
+                                    res = model.generate_content(prompt)
+                                    st.markdown(res.text)
+                                    break # C'est un succès, on sort de la boucle !
+                                    
+                                except Exception as err:
+                                    err_str = str(err)
+                                    if "429" in err_str or "Quota exceeded" in err_str:
+                                        if tentative < max_tentatives - 1:
+                                            # Trouve les secondes demandées par Google et ajoute 2s de marge de sécurité
+                                            match = re.search(r"retry in ([\d\.]+)s", err_str)
+                                            wait_time = int(float(match.group(1))) + 2 if match else 20
+                                            
+                                            placeholder = st.empty()
+                                            for i in range(wait_time, 0, -1):
+                                                placeholder.warning(f"Régulation Google active. Reprise AUTOMATIQUE de l'analyse dans {i} s...")
+                                                time.sleep(1)
+                                                
+                                            # On efface le message d'attente pour que la boucle (tentative suivante) recommence
+                                            placeholder.empty()
+                                        else:
+                                            st.error("Le serveur Google est toujours surchargé. Veuillez réessayer dans une minute.")
+                                    else:
+                                        st.error(f"Erreur système : {err}")
+                                        break
+                            # -----------------------------------------------------------------
+
             st.divider()
