@@ -6,77 +6,22 @@ import time
 import re
 
 # -------------------------------------------------------------
-# CONFIGURATION DE LA PAGE & DESIGN (Light & Rounded)
+# CONFIGURATION DE LA PAGE & DESIGN
 # -------------------------------------------------------------
 st.set_page_config(page_title="AdSpy By Global Numeric", page_icon="☁️", layout="wide")
 
 st.markdown("""
     <style>
-        /* Typographie arrondie et douce */
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
-        
-        html, body, [class*="css"] {
-            font-family: 'Nunito', sans-serif;
-            color: #333333;
-        }
-        
-        /* Titres Light et Minimalistes */
-        .main-title {
-            font-size: 2.8rem;
-            font-weight: 800;
-            color: #2c2c2e; /* Gris foncé Apple */
-            margin-bottom: 0px;
-            letter-spacing: -0.5px;
-        }
-        .sub-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #8e8e93; /* Gris clair Apple */
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        /* Arrondis doux sur les champs de saisie */
-        div[data-baseweb="input"] > div, 
-        div[data-baseweb="base-input"] > div {
-            border-radius: 18px !important;
-            border: 1px solid #e5e5ea !important;
-            background-color: #f2f2f7 !important; /* Fond gris très clair */
-            transition: all 0.2s ease;
-        }
-        div[data-baseweb="input"] > div:focus-within {
-            border-color: #d1d1d6 !important;
-            background-color: #ffffff !important;
-        }
-
-        /* Boutons principaux (Light & Soft) */
-        div.stButton > button:first-child {
-            background-color: #f2f2f7;
-            color: #000000;
-            border: 1px solid #e5e5ea;
-            border-radius: 20px;
-            padding: 10px 24px;
-            font-weight: 700;
-            transition: all 0.2s ease;
-            box-shadow: none;
-        }
-        div.stButton > button:first-child:hover {
-            background-color: #e5e5ea;
-            border-color: #d1d1d6;
-            color: #000000;
-        }
-
-        /* Alertes douces */
-        div[data-testid="stAlert"] {
-            border-radius: 18px !important;
-            border: none !important;
-        }
-        
-        hr {
-            border-color: #f2f2f7;
-            margin: 2.5em 0;
-        }
+        html, body, [class*="css"] { font-family: 'Nunito', sans-serif; color: #333333; }
+        .main-title { font-size: 2.8rem; font-weight: 800; color: #2c2c2e; margin-bottom: 0px; letter-spacing: -0.5px; }
+        .sub-title { font-size: 1.1rem; font-weight: 700; color: #8e8e93; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1.5px; }
+        div[data-baseweb="input"] > div, div[data-baseweb="base-input"] > div { border-radius: 18px !important; border: 1px solid #e5e5ea !important; background-color: #f2f2f7 !important; transition: all 0.2s ease; }
+        div[data-baseweb="input"] > div:focus-within { border-color: #d1d1d6 !important; background-color: #ffffff !important; }
+        div.stButton > button:first-child { background-color: #f2f2f7; color: #000000; border: 1px solid #e5e5ea; border-radius: 20px; padding: 10px 24px; font-weight: 700; transition: all 0.2s ease; box-shadow: none; }
+        div.stButton > button:first-child:hover { background-color: #e5e5ea; border-color: #d1d1d6; color: #000000; }
+        div[data-testid="stAlert"] { border-radius: 18px !important; border: none !important; }
+        hr { border-color: #f2f2f7; margin: 2.5em 0; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -102,24 +47,20 @@ if "search_keyword" not in st.session_state:
     st.session_state.search_keyword = ""
 
 # -------------------------------------------------------------
-# FONCTIONS MÉTIER (Extracteur de texte 100% sécurisé)
+# EXTRACTEUR DE TEXTE
 # -------------------------------------------------------------
 def extraire_vrai_texte(item):
     text_parts = []
-    
     try:
         for key in ["adText", "ad_creative_bodies", "adCreativeBodies"]:
             val = item.get(key)
             if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-            
         for key in ["ad_creative_link_titles", "adCreativeLinkTitles"]:
             val = item.get(key)
             if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-            
         for key in ["ad_creative_link_descriptions", "adCreativeLinkDescriptions", "ad_creative_link_captions"]:
             val = item.get(key)
             if val: text_parts.append(" ".join(val) if isinstance(val, list) else str(val))
-            
         snapshot = item.get("snapshot", {})
         if isinstance(snapshot, dict):
             body = snapshot.get("body", {})
@@ -127,28 +68,21 @@ def extraire_vrai_texte(item):
                 markup = body.get("markup", {})
                 if isinstance(markup, dict):
                     html_content = markup.get("__html", "")
-                    if html_content: 
-                        text_parts.append(re.sub('<[^<]+>', '', html_content).strip())
-            
+                    if html_content: text_parts.append(re.sub('<[^<]+>', '', html_content).strip())
             cards = snapshot.get("cards", [])
-            # SÉCURITÉ AJOUTÉE : Vérifie que c'est une liste ET que le premier élément est un dictionnaire
             if isinstance(cards, list) and len(cards) > 0:
                 first_card = cards[0]
                 if isinstance(first_card, dict):
                     card_body = first_card.get("body", {}).get("markup", {}).get("__html", "")
-                    if card_body: 
-                        text_parts.append(re.sub('<[^<]+>', '', card_body).strip())
-                
+                    if card_body: text_parts.append(re.sub('<[^<]+>', '', card_body).strip())
         text_parts = [t.strip() for t in text_parts if t and len(t.strip()) > 3]
         texte_final = " \n\n ".join(list(dict.fromkeys(text_parts)))
         return texte_final if texte_final else None
-        
     except Exception:
-        # Si la structure de Meta est trop exotique, on évite le crash
         return None
 
 # -------------------------------------------------------------
-# FORMULAIRE & INTERFACE PRINCIPALE
+# INTERFACE PRINCIPALE
 # -------------------------------------------------------------
 with st.form("search_form"):
     col1, col2 = st.columns([2, 1])
@@ -156,37 +90,28 @@ with st.form("search_form"):
         keyword = st.text_input("Secteur, produit ou mot-clé :", "SaaS B2B")
     with col2:
         min_days = st.number_input("Ancienneté min. (jours) :", min_value=0, value=7, step=7)
-    
     submitted = st.form_submit_button("Lancer l'extraction")
 
 if submitted:
     st.session_state.search_keyword = keyword
-    
     try:
         safe_keyword = urllib.parse.quote(keyword)
         search_url = f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword}"
-        
-        run_input = {
-            "urls": [{"url": search_url}],
-            "count": 15
-        }
-        
+        run_input = {"urls": [{"url": search_url}], "count": 15}
         with st.spinner("Recherche des publicités sur Meta..."):
             run = apify_client.actor("curious_coder/facebook-ads-library-scraper").call(run_input=run_input)
             dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
             raw_items = apify_client.dataset(dataset_id).list_items().items
-
         if not raw_items:
             st.warning(f"Aucune publicité trouvée pour le terme '{keyword}'.")
             st.session_state.ads_data = None
         else:
             st.session_state.ads_data = raw_items
-
     except Exception as e:
         st.error(f"Erreur d'extraction : {e}")
 
 # -------------------------------------------------------------
-# AFFICHAGE & MOTEUR D'ANALYSE IA
+# AFFICHAGE & ANALYSE IA
 # -------------------------------------------------------------
 if st.session_state.ads_data:
     st.success(f"🎯 {len(st.session_state.ads_data)} publicités identifiées avec succès !")
@@ -196,12 +121,13 @@ if st.session_state.ads_data:
         page_name = item.get("pageName") or item.get("page_name") or "Annonceur"
         vrai_texte = extraire_vrai_texte(item)
         
+        # Adaptation de l'UX et du Prompt si le texte est introuvable
         if vrai_texte:
-            ad_text_display = vrai_texte
+            ux_text_display = vrai_texte
             prompt_target = f"Analyse méticuleusement le texte (copywriting) de cette publicité :\n---\n{vrai_texte}\n---"
         else:
-            ad_text_display = "📸 *Format visuel sans texte descriptif extrait.*"
-            prompt_target = f"Cette publicité pour le produit '{st.session_state.search_keyword}' utilise un format visuel sans description. Propose une stratégie d'accroche vidéo et un angle psychologique pour ce type de produit."
+            ux_text_display = "🔒 *Texte protégé par Meta ou incrusté dans le média (Image/Vidéo).*"
+            prompt_target = f"Le texte de cette publicité est invisible techniquement, mais elle cible le mot-clé '{st.session_state.search_keyword}'. Propose 3 stratégies d'accroches psychologiques ultra-performantes (Hooks) que l'on pourrait utiliser pour vendre ce type de produit/service sur Meta Ads."
 
         ad_id = item.get("id") or item.get("adArchiveID") or item.get("archive_id") or item.get("ad_id")
         page_id = item.get("pageID") or item.get("pageId") or item.get("page_id")
@@ -215,12 +141,11 @@ if st.session_state.ads_data:
             ad_url = item.get("snapshotUrl") or f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={safe_keyword2}"
 
         st.markdown(f"### **{page_name}**")
-        
         col_data, col_ai = st.columns([1, 1], gap="large")
 
         with col_data:
-            st.markdown("**📝 Copywriting extrait**")
-            st.info(ad_text_display)
+            st.markdown("**📝 Copywriting**")
+            st.info(ux_text_display)
             st.markdown(f"🔗 [Voir l'annonce originale sur Meta]({ad_url})")
 
         with col_ai:
@@ -233,25 +158,22 @@ if st.session_state.ads_data:
                         with st.spinner("Analyse du framework..."):
                             genai.configure(api_key=GEMINI_API_KEY)
                             model = genai.GenerativeModel("gemini-3.8-flash")
-                            
                             prompt = f"""
-                            Tu es un copywriter et expert en Growth Marketing.
+                            Tu es un copywriter et expert en Growth Marketing chez Global Numeric.
                             {prompt_target}
                             
-                            Délivre une analyse percutante, moderne et minimaliste (en français) structurée ainsi :
-                            1. **Hook (Accroche) :** Quel est le levier cognitif utilisé ?
+                            Délivre une réponse percutante, moderne et minimaliste (en français) structurée ainsi :
+                            1. **Hook (Accroche) :** L'angle d'attaque utilisé (ou recommandé).
                             2. **Angle & Persona :** Quel problème profond est ciblé ?
-                            3. **Itération (V2) :** Propose une idée de script Hook rapide pour surpasser cette pub.
+                            3. **Itération (V2) :** Propose une idée de script Hook rapide pour une future pub.
                             """
                             res = model.generate_content(prompt)
                             st.markdown(res.text)
-                            
                     except Exception as err:
                         err_str = str(err)
                         if "429" in err_str or "Quota exceeded" in err_str:
                             match = re.search(r"retry in ([\d\.]+)s", err_str)
                             wait_time = int(float(match.group(1))) + 1 if match else 20
-                            
                             placeholder = st.empty()
                             for i in range(wait_time, 0, -1):
                                 placeholder.warning(f"⏳ L'IA calcule. Relance possible dans {i} s...")
@@ -259,5 +181,4 @@ if st.session_state.ads_data:
                             placeholder.success("✅ C'est bon, l'IA est prête !")
                         else:
                             st.error(f"Erreur d'analyse : {err}")
-
         st.divider()
