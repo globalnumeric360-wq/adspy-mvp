@@ -74,7 +74,7 @@ if st.session_state.ads_data:
         if isinstance(ad_text, list):
             ad_text = " ".join(ad_text)
             
-        # CORRECTION DES LIENS : Balayage de toutes les variables d'ID du scraper
+        # CORRECTION DES LIENS
         ad_id = item.get("id") or item.get("adArchiveID") or item.get("archive_id") or item.get("ad_id")
         page_id = item.get("pageID") or item.get("pageId") or item.get("page_id")
         
@@ -101,38 +101,25 @@ if st.session_state.ads_data:
                 if not GEMINI_API_KEY:
                     st.warning("⚠️ Clé GEMINI_API_KEY absente.")
                 else:
-                    with st.spinner("Recherche du modèle IA et génération en cours..."):
+                    with st.spinner("Analyse par l'IA en cours..."):
                         genai.configure(api_key=GEMINI_API_KEY)
                         
                         try:
-                            # CORRECTION GEMINI : Détection dynamique et automatique des modèles autorisés
-                            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                            chosen_model = None
+                            # Utilisation stricte de la dernière version demandée par l'API
+                            model = genai.GenerativeModel("gemini-3.8-flash")
                             
-                            for m_name in available_models:
-                                if "gemini-1.5" in m_name:
-                                    chosen_model = m_name
-                                    break
-                            
-                            if not chosen_model and available_models:
-                                chosen_model = available_models[0] 
-                            
-                            if not chosen_model:
-                                st.error("Aucun modèle Gemini compatible trouvé sur votre clé API.")
-                            else:
-                                model = genai.GenerativeModel(chosen_model)
-                                prompt = f"""
-                                Tu es un expert en Growth Marketing. Analyse cette publicité Meta :
-                                ---
-                                {ad_text}
-                                ---
-                                Réponds en français de manière très concise :
-                                1. **Accroche (Hook) :** Quelle est la technique utilisée ?
-                                2. **Angle psychologique :** Quel désir/problème est visé ?
-                                3. **Concept dérivé :** Propose une idée de nouvelle publicité inspirée de cette structure.
-                                """
-                                res = model.generate_content(prompt)
-                                st.markdown(res.text)
+                            prompt = f"""
+                            Tu es un expert en Growth Marketing. Analyse cette publicité Meta :
+                            ---
+                            {ad_text}
+                            ---
+                            Réponds en français de manière très concise :
+                            1. **Accroche (Hook) :** Quelle est la technique utilisée ?
+                            2. **Angle psychologique :** Quel désir/problème est visé ?
+                            3. **Concept dérivé :** Propose une idée de nouvelle publicité inspirée de cette structure.
+                            """
+                            res = model.generate_content(prompt)
+                            st.markdown(res.text)
                         except Exception as err:
                             st.error(f"L'API Gemini rencontre une erreur : {err}")
 
